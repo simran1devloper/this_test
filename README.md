@@ -40,6 +40,26 @@ The `ModeSelector` component dynamically routes requests based on complexity and
 - "Can you explain that policy again?" -> **RAG** (if configured)
 - Complex ambiguity -> **LLM**
 
+## � Runtime Logic Flow
+
+Every time the user speaks (STT transcript received) or a VAD event occurs, the system executes the following pipeline:
+
+1.  **Input Capture**: The `InterruptionManager` receives the live transcript and audio metadata (VAD status, timestamps).
+2.  **Feature Extraction**:
+    *   **OverlapDetector**: Did the user speak *while* the agent was speaking?
+    *   **FillerDetector**: Is the input just a backchannel like "uh-huh"?
+    *   **SemanticIntent**: Does the text contain explicit keywords ("Stop", "Wait")?
+3.  **Mode Selection**: The `ModeSelector` evaluates the features and system constraints (latency budget).
+    *   *Example*: If overlap is detected and the user said "Stop", it selects **RULES** (fastest).
+    *   *Example*: If the user asks a complex question, it selects **RAG** or **LLM**.
+4.  **Engine Execution**: The selected engine runs its logic to produce a decision (`INTERRUPT`, `IGNORE`, or `NORMAL`).
+5.  **Action**:
+    *   **INTERRUPT**: The agent effectively stops speaking immediately.
+    *   **IGNORE**: The agent ignores the noise/filler and continues speaking.
+    *   **NORMAL**: The input is treated as a standard user turn, usually processed by the main agent loop.
+
+
+
 ## 📦 Setup & Installation
 
 ### 1. Install Dependencies
