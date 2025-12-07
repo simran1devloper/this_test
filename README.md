@@ -1,74 +1,50 @@
-# Interrupt Manager AI Agent Workflow
+# LiveKit Intelligent Interruption Engine (Switchable & Hybrid)
 
-![Flowchart](/home/sonia/.gemini/antigravity/brain/85f7df8a-6c3c-4754-9833-3d6f65982f32/interrupt_manager_flowchart_v2_1765096776442.png)
+This repository implements a **Strategy-Pattern** based interruption handling system for LiveKit Agents. It supports multiple modes of operation including Rule-based, ML-based, and LLM-based classification.
 
-This workflow describes how to set up, configure, and verify the Interruption Manager library.
+## 🚀 Features
 
-## 1. Environment Setup
+* **Switchable Engines:** Change logic without changing code via `INTERRUPT_MODE`.
+* **Hybrid Automatic Switching:** Uses fast Rules for simple cases ("yeah", "stop") and escalates to LLM for complex sentences ("Yeah, wait a second, I think...").
+* **LLM Provider Agnostic:** Supports OpenAI, Google Gemini, and Ollama via Factory pattern.
+* **Microservice Ready:** Engines are decoupled and can be moved to external inference services.
 
-The project requires Python 3.9+ and several dependencies.
+## 🛠 Configuration (`config.py` & Env Vars)
 
-### Installation
-```bash
-pip install -r requirements.txt
-# Additional system dependencies
-pip install nltk
-```
-
-> [!NOTE]
-> If `nltk` is missing, the provided `demo.py` includes a mock implementation for testing purposes.
-
-## 2. Configuration
-
-Configuration is handled via `.env` or `config.py`.
-
-### Key Environment Variables
-| Variable | Description | Default |
+| Variable | Options | Description |
 | :--- | :--- | :--- |
-| `INTERRUPT_MODE` | Logic Engine: `RULES`, `ML`, `LLM`, `HYBRID` | `RULES` |
-| `LK_IGNORE_WORDS` | Comma-separated words to ignore | `yeah,ok,hmm` |
-| `LK_INTERRUPT_WORDS` | Comma-separated words that trigger interrupt | `stop,wait,no` |
-| `LK_LATENCY_BUDGET` | Latency threshold | `0.2` |
+| `INTERRUPT_MODE` | `RULES`, `ML`, `LLM`, `HYBRID` | Determines the logic engine. |
+| `LLM_PROVIDER` | `gpt`, `gemini`, `ollama` | Which LLM to use (if mode is LLM/HYBRID). |
+| `LLM_MODEL_NAME` | `gpt-4o`, `llama3`, etc. | Model identifier. |
+| `LK_IGNORE_WORDS` | List (csv) | Words to ignore in RULES mode. |
 
-## 3. Running the Verification Demo
+## 🏗 Architecture
 
-A `demo.py` script is provided to simulate the agent's behavior without a full LiveKit connection.
+The system uses a **Strategy Pattern**:
 
-### Usage
-Run the demo as a module to ensure imports work correctly:
+1.  **`BaseEngine`**: Interface defining `classify(transcript, state)`.
+2.  **`RulesEngine`**: Regex/Keyword matching (O(1) latency).
+3.  **`MLEngine`**: Placeholder for GAP/PodcastFillers trained models.
+4.  **`LLMEngine`**: LangChain wrapper for semantic intent detection.
 
-```bash
-# Ensure you are in the parent directory of 'tool' or set PYTHONPATH
-export PYTHONPATH=$PYTHONPATH:$(dirname $(pwd))
-python3 -m tool.demo
-```
+## 🤖 ML/DL Model Notes
 
-### Expected Output
-The demo tests several phrases against the `RULES` engine:
-- "yeah" -> `IGNORE` (Backchannel)
-- "stop" -> `INTERRUPT` (Command)
-- "I like apples" -> `NORMAL` (User Input)
+For the `ML` mode, we recommend training a classification model on the **GAP Derived Interruption Dataset** or **PodcastFillers**.
 
-## 4. Integration Guide
+* **Input Features:** Text embeddings + Audio Energy + Overlap Duration.
+* **Model Architecture:** A lightweight LSTM or DistilBERT for latency <100ms.
+* **Output:** Softmax over `[INTERRUPT, IGNORE, NORMAL]`.
 
-To use this in your own agent:
+## 📦 Setup
 
-1.  **Initialize**:
-    ```python
-    from tool.interruption_manager import InterruptionManager
-    manager = InterruptionManager()
+1.  Install dependencies:
+    ```bash
+    pip install langchain langchain-openai langchain-ollama
     ```
-
-2.  **Analyze**:
-    Call `analyze()` on every transcript chunk.
-    ```python
-    decision = await manager.analyze(transcript, is_speaking=True, audio_meta={...})
-    if decision == "INTERRUPT":
-        await stop_tts()
+2.  Set Environment:
+    ```bash
+    export INTERRUPT_MODE="HYBRID"
+    export LLM_PROVIDER="ollama"
+    export OPENAI_API_KEY="sk-..." # if using GPT
     ```
-
-## 5. Troubleshooting
-
-- **Import Errors**: Ensure the directory is treated as a package (presence of `__init__.py`) and `PYTHONPATH` includes the parent directory.
-- **Rules Mode**: Ensure `nltk` is installed for the real `RulesEngine` to work optimally.
-- **LLM Mode**: Requires valid API keys for OpenAI/Ollama/Gemini in `.env`.
+3.  Run Agent.
